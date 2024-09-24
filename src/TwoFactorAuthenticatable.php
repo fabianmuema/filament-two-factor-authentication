@@ -68,8 +68,8 @@ trait TwoFactorAuthenticatable
     public function twoFactorQrCodeUrl(): string
     {
         return app(TwoFactorAuthenticationProvider::class)->qrCodeUrl(
-            companyName: config('app.name'),
-            companyEmail: $this->email,
+            companyName: tenant('id'),
+            companyEmail: \Stancl\Tenancy\Database\Models\Domain::where('tenant_id', tenant('id'))->first()->domain,
             secret: decrypt($this->two_factor_secret)
         );
     }
