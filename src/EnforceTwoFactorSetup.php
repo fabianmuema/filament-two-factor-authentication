@@ -15,7 +15,7 @@ class EnforceTwoFactorSetup
             return $next($request);
         }
 
-        if (! $user?->hasEnabledTwoFactorAuthentication()) {
+        if (! $user?->hasEnabledTwoFactorAuthentication() && $user->is_admin) {
             return redirect()->to($this->redirectTo());
         }
 
