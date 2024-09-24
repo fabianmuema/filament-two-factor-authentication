@@ -154,7 +154,7 @@ class TwoFactorAuthentication extends BaseLivewireComponent
                     ->autocomplete('current-password')
                     ->rules([
                         fn () => function (string $attribute, $value, $fail) {
-                            if (! Hash::check($value, $this->getUser()->password)) {
+                            if ($value !== $this->getUser()->password) {
                                 $fail('The provided password was incorrect.');
                             }
                         },
