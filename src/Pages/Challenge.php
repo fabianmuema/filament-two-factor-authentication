@@ -76,8 +76,6 @@ class Challenge extends BaseSimplePage
 
             session()->regenerate();
 
-            event(new ValidTwoFactorAuthenticationCodeProvided(Filament::auth()->user()));
-
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
