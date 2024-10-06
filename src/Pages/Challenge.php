@@ -5,6 +5,7 @@ namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\LoginResponse;
@@ -27,6 +28,17 @@ class Challenge extends BaseSimplePage
 
     public function mount(): void
     {
+        if (cookie('remember')) {
+            Filament::auth()->loginUsingId(
+                id: session('login.id'),
+                remember: true
+            );
+
+            redirect()->intended(Filament::getUrl());
+
+            return;
+        }
+
         if (Filament::auth()->check()) {
             redirect()->intended(Filament::getUrl());
 
@@ -75,6 +87,14 @@ class Challenge extends BaseSimplePage
             session()->forget(['login.id', 'login.remember']);
 
             session()->regenerate();
+
+            if ($this->form()->getState()['remember']) {
+                cookie()->queue(
+                    'remember',
+                    encrypt($this->form()->getState()['remember']),
+                    60 * 48
+                );
+            }
 
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
@@ -129,6 +149,10 @@ class Challenge extends BaseSimplePage
                                     }
                                 },
                             ]),
+                        Checkbox::make('remember')
+                            ->label(__('Remember this device for 2 days'))
+                            ->helperText(__('For your security, please do not check this option on a shared device.'))
+                            ->default(session('login.remember', false)),
                     ])
                     ->statePath('data'),
             ),
