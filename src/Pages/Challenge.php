@@ -9,6 +9,7 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Http\Responses\Auth\LoginResponse;
 use Illuminate\Contracts\Support\Htmlable;
 use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
@@ -30,7 +31,13 @@ class Challenge extends BaseSimplePage
     public function mount(): void
     {
         $user = \App\Models\User::find(session('login.id'));
-        if (($user && $user->next_two_factor_authentication_at) && $user->next_two_factor_authentication_at->isPast()) {
+
+        if (($user && $user->next_two_factor_authentication_at) && $user->next_two_factor_authentication_at->isFuture()) {
+            Filament::auth()->loginUsingId(
+                id: session('login.id'),
+                remember: session('login.remember')
+            );
+
             redirect()->intended(Filament::getUrl());
 
             return;
@@ -84,12 +91,6 @@ class Challenge extends BaseSimplePage
             session()->forget(['login.id', 'login.remember']);
 
             session()->regenerate();
-
-            if ($this->form()->getState()['remember']) {
-                \App\Models\User::find(session('login.id'))->forceFill([
-                    'next_two_factor_authentication_at' => now()->addDays(2),
-                ])->save();
-            }
 
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
@@ -145,6 +146,15 @@ class Challenge extends BaseSimplePage
                                 },
                             ]),
                         Checkbox::make('remember')
+                            ->live()
+                            ->afterStateUpdated(function (Get $get) {
+                                $user = \App\Models\User::find(session('login.id'));
+                                if ($get('remember') && $user) {
+                                    \App\Models\User::find(session('login.id'))->update(['next_two_factor_authentication_at' => now()->addDays(2)]);
+                                } else if ($user) {
+                                    \App\Models\User::find(session('login.id'))->update(['next_two_factor_authentication_at' => null]);
+                                }
+                            })
                             ->label(__('Do not ask for a code on this account for 2 days'))
                             ->helperText(__('For your security, please do not check this option on a shared device.'))
                             ->default(session('login.remember', false)),
