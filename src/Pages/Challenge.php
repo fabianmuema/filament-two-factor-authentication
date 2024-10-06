@@ -2,6 +2,7 @@
 
 namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 
+use App\User;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -28,12 +29,8 @@ class Challenge extends BaseSimplePage
 
     public function mount(): void
     {
-        if (cookie('remember')) {
-            Filament::auth()->loginUsingId(
-                id: session('login.id'),
-                remember: true
-            );
-
+        $user = \App\Models\User::find(session('login.id'));
+        if (($user && $user->next_two_factor_authentication_at) && $user->next_two_factor_authentication_at->isPast()) {
             redirect()->intended(Filament::getUrl());
 
             return;
@@ -89,11 +86,9 @@ class Challenge extends BaseSimplePage
             session()->regenerate();
 
             if ($this->form()->getState()['remember']) {
-                cookie()->queue(
-                    'remember',
-                    encrypt($this->form()->getState()['remember']),
-                    60 * 48
-                );
+                \App\Models\User::find(session('login.id'))->forceFill([
+                    'next_two_factor_authentication_at' => now()->addDays(2),
+                ])->save();
             }
 
             return app(LoginResponse::class);
@@ -150,7 +145,7 @@ class Challenge extends BaseSimplePage
                                 },
                             ]),
                         Checkbox::make('remember')
-                            ->label(__('Remember this device for 2 days'))
+                            ->label(__('Do not ask for a code on this account for 2 days'))
                             ->helperText(__('For your security, please do not check this option on a shared device.'))
                             ->default(session('login.remember', false)),
                     ])
