@@ -77,10 +77,10 @@ class Challenge extends BaseSimplePage
 
             session()->regenerate();
 
-            if ($this->form()->getState()['remember']) {
+            if ($this->form->getState()['remember']) {
                 cookie()->queue(
                     'remember',
-                    encrypt($this->form()->getState()['remember']),
+                    encrypt($this->form->getState()['remember']),
                     60 * 48
                 );
 
@@ -93,11 +93,6 @@ class Challenge extends BaseSimplePage
 
             return null;
         }
-    }
-
-    public function form(Form $form): Form
-    {
-        return $form;
     }
 
     public function getFormActions(): array
@@ -167,6 +162,11 @@ class Challenge extends BaseSimplePage
                     ->statePath('data'),
             ),
         ];
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form;
     }
 
     protected function hasFullWidthFormActions(): bool
