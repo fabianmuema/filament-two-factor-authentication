@@ -2,9 +2,11 @@
 
 namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 
+use App\Services\UserService;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\LoginResponse;
@@ -75,12 +77,27 @@ class Challenge extends BaseSimplePage
 
             session()->regenerate();
 
+            if ($this->form()->getState()['remember']) {
+                cookie()->queue(
+                    'remember',
+                    encrypt($this->form()->getState()['remember']),
+                    60 * 48
+                );
+
+                UserService::saveTrustedDevice(\Auth::user());
+            }
+
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
 
             return null;
         }
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form;
     }
 
     public function getFormActions(): array
@@ -142,15 +159,14 @@ class Challenge extends BaseSimplePage
                                     }
                                 },
                             ]),
+                        Checkbox::make('remember')
+                            ->label(__('Remember this choice for 2 days'))
+                            ->helperText(__('For your security, please do not check this option on a shared device.'))
+                            ->default(session('login.remember', false)),
                     ])
                     ->statePath('data'),
             ),
         ];
-    }
-
-    public function form(Form $form): Form
-    {
-        return $form;
     }
 
     protected function hasFullWidthFormActions(): bool
