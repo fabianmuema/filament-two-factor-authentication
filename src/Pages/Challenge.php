@@ -2,16 +2,13 @@
 
 namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 
-use App\Models\User;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\LoginResponse;
 use Illuminate\Contracts\Support\Htmlable;
-use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
 use Stephenjude\FilamentTwoFactorAuthentication\Events\TwoFactorAuthenticationChallenged;
 use Stephenjude\FilamentTwoFactorAuthentication\Events\TwoFactorAuthenticationFailed;
 use Stephenjude\FilamentTwoFactorAuthentication\TwoFactorAuthenticationProvider;
@@ -24,23 +21,11 @@ class Challenge extends BaseSimplePage
 
     public function getTitle(): string | Htmlable
     {
-        return 'Two Factor Authentication';
+        return __('Two Factor Authentication');
     }
 
     public function mount(): void
     {
-        $user = User::find(session('login.id'))->first();
-        if ($user && $user->two_factor_secret && ($user->next_two_factor_authentication_at && $user->next_two_factor_authentication_at->isFuture())) {
-            Filament::auth()->loginUsingId(
-                id: session('login.id'),
-                remember: true
-            );
-
-            redirect()->intended(Filament::getUrl());
-
-            return;
-        }
-
         if (Filament::auth()->check()) {
             redirect()->intended(Filament::getUrl());
 
@@ -90,20 +75,26 @@ class Challenge extends BaseSimplePage
 
             session()->regenerate();
 
-            if ($this->form()->getState()['remember']) {
-                cookie()->queue(
-                    'remember',
-                    encrypt($this->form()->getState()['remember']),
-                    60 * 48
-                );
-            }
-
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
 
             return null;
         }
+    }
+
+    public function getFormActions(): array
+    {
+        return [
+            $this->getAuthenticateFormAction(),
+        ];
+    }
+
+    protected function getAuthenticateFormAction(): Action
+    {
+        return Action::make('authenticate')
+            ->label(__('filament-panels::pages/auth/login.form.actions.authenticate.label'))
+            ->submit('authenticate');
     }
 
     /**
@@ -151,10 +142,6 @@ class Challenge extends BaseSimplePage
                                     }
                                 },
                             ]),
-                        Checkbox::make('remember')
-                            ->label(__('Remember this device for 2 days'))
-                            ->helperText(__('For your security, please do not check this option on a shared device.'))
-                            ->default(session('login.remember', false)),
                     ])
                     ->statePath('data'),
             ),
@@ -164,20 +151,6 @@ class Challenge extends BaseSimplePage
     public function form(Form $form): Form
     {
         return $form;
-    }
-
-    public function getFormActions(): array
-    {
-        return [
-            $this->getAuthenticateFormAction(),
-        ];
-    }
-
-    protected function getAuthenticateFormAction(): Action
-    {
-        return Action::make('authenticate')
-            ->label(__('filament-panels::pages/auth/login.form.actions.authenticate.label'))
-            ->submit('authenticate');
     }
 
     protected function hasFullWidthFormActions(): bool
