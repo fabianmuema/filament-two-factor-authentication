@@ -2,14 +2,13 @@
 
 namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 
-use App\User;
+use App\Models\User;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Http\Responses\Auth\LoginResponse;
 use Illuminate\Contracts\Support\Htmlable;
 use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
@@ -30,12 +29,11 @@ class Challenge extends BaseSimplePage
 
     public function mount(): void
     {
-        $user = \App\Models\User::find(session('login.id'));
-
-        if (($user && $user->next_two_factor_authentication_at) && $user->next_two_factor_authentication_at->isFuture()) {
+        $user = User::find(session('login.id'))->first();
+        if ($user && $user->two_factor_secret && ($user->next_two_factor_authentication_at && $user->next_two_factor_authentication_at->isFuture())) {
             Filament::auth()->loginUsingId(
                 id: session('login.id'),
-                remember: session('login.remember')
+                remember: true
             );
 
             redirect()->intended(Filament::getUrl());
@@ -92,6 +90,14 @@ class Challenge extends BaseSimplePage
 
             session()->regenerate();
 
+            if ($this->form()->getState()['remember']) {
+                cookie()->queue(
+                    'remember',
+                    encrypt($this->form()->getState()['remember']),
+                    60 * 48
+                );
+            }
+
             return app(LoginResponse::class);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
@@ -146,16 +152,7 @@ class Challenge extends BaseSimplePage
                                 },
                             ]),
                         Checkbox::make('remember')
-                            ->live()
-                            ->afterStateUpdated(function (Get $get) {
-                                $user = \App\Models\User::find(session('login.id'));
-                                if ($get('remember') && $user) {
-                                    \App\Models\User::find(session('login.id'))->update(['next_two_factor_authentication_at' => now()->addDays(2)]);
-                                } else if ($user) {
-                                    \App\Models\User::find(session('login.id'))->update(['next_two_factor_authentication_at' => null]);
-                                }
-                            })
-                            ->label(__('Do not ask for a code on this account for 2 days'))
+                            ->label(__('Remember this device for 2 days'))
                             ->helperText(__('For your security, please do not check this option on a shared device.'))
                             ->default(session('login.remember', false)),
                     ])
