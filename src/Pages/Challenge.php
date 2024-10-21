@@ -2,6 +2,7 @@
 
 namespace Stephenjude\FilamentTwoFactorAuthentication\Pages;
 
+use App\Models\User;
 use App\Services\UserService;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
@@ -68,6 +69,8 @@ class Challenge extends BaseSimplePage
 
             $this->form->getState();
 
+            UserService::saveTrustedDevice(User::where('id', session('login.id'))->first());
+
             Filament::auth()->loginUsingId(
                 id: session('login.id'),
                 remember: session('login.remember')
@@ -83,8 +86,6 @@ class Challenge extends BaseSimplePage
                     encrypt($this->form->getState()['remember']),
                     60 * 48
                 );
-
-                UserService::saveTrustedDevice(\Auth::user());
             }
 
             return app(LoginResponse::class);
