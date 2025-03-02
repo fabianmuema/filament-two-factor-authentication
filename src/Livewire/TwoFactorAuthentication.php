@@ -28,6 +28,9 @@ class TwoFactorAuthentication extends BaseLivewireComponent
         $this->form->fill();
     }
 
+    protected static string $layout = 'layouts.app';
+    
+
     public function render()
     {
         return view('filament-two-factor-authentication::livewire.two-factor-authentication');
