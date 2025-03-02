@@ -1,4 +1,6 @@
 <div>
+    <link rel="stylesheet" href="{{ asset('css/account-creation.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/form.css') }}">
     <style>
         :root {
             --primary-color: {{  tenant('color') }};
